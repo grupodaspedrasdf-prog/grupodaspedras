@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Grupo das Pedras</title>
+<meta name="description" content="Placar e ranking do Grupo das Pedras.">
+<meta name="theme-color" content="#0F172A">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pedras">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="appbar">
+  <img class="logo" src="icons/logo.png" width="44" height="44" alt="Grupo das Pedras">
+  <div class="brand">Grupo das Pedras<small>Placar &amp; Ranking</small></div>
+  <button class="act" id="somBtn" onclick="toggleSom()"></button>
+</header>
+
+<main class="screens">
+
+  <!-- RANKING -->
+  <section class="screen on" id="s-rank">
+    <div id="sessBox"></div>
+    <div><span class="eyebrow">Temporada</span><h2 class="title">Ranking geral</h2></div>
+    <div id="titulos"></div>
+    <div class="card">
+      <table class="rank">
+        <thead><tr><th></th><th>Jogador</th><th>GD</th><th>GT</th><th>PF</th><th>Saldo</th></tr></thead>
+        <tbody id="rankBody"></tbody>
+      </table>
+    </div>
+    <p class="foot-note"><b>Critério:</b> saldo puro (GD − GT); desempate por PF e depois GD. O ranking é recalculado a partir das noites fechadas.</p>
+    <div id="coroas"></div>
+    <div id="parcialBox"></div>
+    <div id="nuvemBox"></div>
+    <div id="zerar"></div>
+  </section>
+
+  <!-- SALA -->
+  <section class="screen" id="s-room">
+    <div><span class="eyebrow">Presença</span><h2 class="title">Sala da noite</h2></div>
+    <div class="card">
+      <div class="row" style="margin-bottom:9px">
+        <span class="eyebrow" id="roomTitle">Presença</span>
+        <button class="iconbtn" id="mgBtn" onclick="toggleManage()" aria-pressed="false"></button>
+      </div>
+      <p class="foot-note" style="margin-bottom:10px" id="roomHelp"></p>
+      <div class="chips" id="roomChips"></div>
+      <div id="roomList" hidden></div>
+      <div style="height:12px"></div>
+      <button class="btn ghost sm" id="addToggle" onclick="toggleAdd()">+ Adicionar jogador</button>
+      <div id="addForm" hidden>
+        <div style="height:10px"></div>
+        <label class="eyebrow" for="npNome">Nome completo</label>
+        <input class="inp" id="npNome" placeholder="Ex.: José Carlos" autocomplete="off">
+        <div style="height:8px"></div>
+        <label class="eyebrow" for="npApelido">Como aparece na mesa</label>
+        <input class="inp" id="npApelido" placeholder="Ex.: Zé Carlos" autocomplete="off">
+        <div style="height:10px"></div>
+        <div style="display:flex; gap:8px">
+          <button class="btn sm" style="flex:1" id="saveBtn" onclick="savePlayer()">Salvar e pôr na sala</button>
+          <button class="btn ghost sm" onclick="toggleAdd()">Cancelar</button>
+        </div>
+        <p class="foot-note" style="margin-top:9px" id="addHelp"></p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row"><span class="eyebrow">Na sala</span><b id="roomCount">0</b></div>
+      <div style="height:8px"></div>
+      <p class="foot-note" id="roomRule"></p>
+    </div>
+    <button class="btn" onclick="go('s-table')">Ir para a mesa</button>
+  </section>
+
+  <!-- MESA -->
+  <section class="screen" id="s-table">
+    <div class="row">
+      <div><span class="eyebrow">Passo 2</span><h2 class="title">Montar a mesa</h2></div>
+      <button class="btn ghost sm" onclick="autoMesa()">Sortear</button>
+    </div>
+    <div class="card" style="padding:12px 10px">
+      <div class="mesa" id="mesa">
+        <div class="felt"><img class="felt-mark" src="icons/logo.png" alt="" aria-hidden="true"></div>
+        <span class="duo-tag a">Dupla A</span>
+        <span class="duo-tag b">Dupla B</span>
+        <div class="seat A n" data-seat="A1" tabindex="0"></div>
+        <div class="seat B e" data-seat="B1" tabindex="0"></div>
+        <div class="seat A s" data-seat="A2" tabindex="0"></div>
+        <div class="seat B w" data-seat="B2" tabindex="0"></div>
+      </div>
+      <p class="foot-note" style="text-align:center">Parceiros sentam de frente. Arraste da fila para o lugar — ou toque no nome e depois na cadeira.</p>
+    </div>
+    <div class="card" id="filaBox">
+      <div class="row"><span class="eyebrow">Fila de espera</span><b class="eyebrow" id="filaCount"></b></div>
+      <div style="height:9px"></div>
+      <div class="chips" id="filaChips"></div>
+      <div style="height:10px"></div>
+      <p class="foot-note" id="filaRule"></p>
+    </div>
+    <button class="btn" id="startBtn" onclick="startGame()">Iniciar partida</button>
+  </section>
+
+  <!-- PLACAR -->
+  <section class="screen" id="s-live">
+    <div class="row">
+      <div><span class="eyebrow">Rodada em andamento</span><h2 class="title">Placar</h2></div>
+      <span class="eyebrow" id="liveMode"></span>
+    </div>
+    <div class="duo" id="duoWrap"></div>
+    <div class="banner info" id="liveBanner"></div>
+    <button class="btn" id="fimBtn" onclick="encerrar()" hidden>Encerrar</button>
+    <div style="display:flex; gap:8px">
+      <button class="btn ghost" style="flex:1" onclick="inacabada()">Encerrar sem resultado</button>
+      <button class="btn ghost" style="flex:1" onclick="go('s-table')">Cancelar</button>
+    </div>
+    <p class="foot-note">"Sem resultado" é para quando a noite acaba no meio da partida: fica registrada, mas não lança nada para ninguém.</p>
+  </section>
+
+  <!-- RESUMO -->
+  <section class="screen" id="s-sum">
+    <div><span class="eyebrow">Passo 4</span><h2 class="title">Resumo da rodada</h2></div>
+    <div class="card">
+      <div class="result">
+        <div id="sumCross"></div>
+        <div class="kind" id="sumKind"></div>
+        <div style="font-size:15px;font-weight:600" id="sumWho"></div>
+        <div class="foot-note" id="sumScore"></div>
+      </div>
+    </div>
+    <div class="card">
+      <span class="eyebrow">O que será lançado</span>
+      <div id="sumDeltas"></div>
+    </div>
+    <div class="card">
+      <span class="eyebrow">Próxima mesa</span>
+      <div style="height:8px"></div>
+      <div id="rodizioBox"></div>
+    </div>
+    <button class="btn" id="sumBtn" onclick="confirmGame()">Confirmar e montar próxima mesa</button>
+    <button class="btn ghost" onclick="go('s-live')">Corrigir placar</button>
+  </section>
+
+  <!-- HISTORICO -->
+  <section class="screen" id="s-hist">
+    <div><span class="eyebrow">Registro</span><h2 class="title">Histórico</h2></div>
+    <div id="histNoite"></div>
+    <span class="eyebrow">Noites fechadas</span>
+    <div id="histAntigas"></div>
+    <p class="foot-note">Enquanto os trabalhos estão abertos, qualquer rodada pode ser apagada. Depois de fechados, a noite vira histórico e não se altera mais — nem no aparelho, nem na nuvem.</p>
+  </section>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<nav class="nav">
+  <button class="navbtn on" data-t="s-rank" onclick="go('s-rank')"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 16V9M10 16V4M16 16v-5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Ranking</button>
+  <button class="navbtn" data-t="s-room" onclick="go('s-room')"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="7.5" cy="7" r="2.8" stroke="currentColor" stroke-width="1.8"/><path d="M3 16.5c.6-2.7 2.4-4 4.5-4s3.9 1.3 4.5 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M13.5 6.2a2.6 2.6 0 010 5M14 12.8c1.6.4 2.7 1.7 3.1 3.7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Sala</button>
+  <button class="navbtn" data-t="s-table" onclick="go('s-table')"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="3" y="2.5" width="14" height="15" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 10h13" stroke="currentColor" stroke-width="1.8"/><circle cx="10" cy="6.4" r="1.2" fill="currentColor"/><circle cx="7.6" cy="13.6" r="1.2" fill="currentColor"/><circle cx="12.4" cy="13.6" r="1.2" fill="currentColor"/></svg>Mesa</button>
+  <button class="navbtn" data-t="s-hist" onclick="go('s-hist')"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 5h12M4 10h12M4 15h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Histórico</button>
+</nav>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
