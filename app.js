@@ -18,13 +18,15 @@ const SEMENTE_NOITES = [{
   id:'PEDRAS-07-09-26', cod:'PEDRAS-07/09/26', dia:'domingo, 07/09/26',
   abriu:'22h07', fechou:'02h14',
   totais:{partidas:24, gatos:8, aleijados:0, fechadas:14, sem:2},
-  nota:'Folha de papel auditada: 8 gatos + 14 fechadas + 2 sem resultado = 24 partidas.',
+  nota:'Folha de papel auditada e fechada: 8 gatos + 14 fechadas + 2 sem resultado = 24 partidas; 96 participações.',
+  /* PJ e SR contados na folha por Marcos em 09/09/26.
+     Conferência: soma de PJ = 96 = 24 partidas x 4 jogadores; soma de SR = 8 = 2 x 4. */
   resumo:[
-    {id:'paulo',    gd:5, gt:3, pf:8, pj:null},
-    {id:'alcimar',  gd:4, gt:2, pf:5, pj:null},
-    {id:'adenoque', gd:3, gt:2, pf:6, pj:null},
-    {id:'marcos',   gd:2, gt:4, pf:4, pj:null},
-    {id:'dina',     gd:2, gt:5, pf:5, pj:null}
+    {id:'paulo',    gd:5, gt:3, pf:8, pj:22, sr:2},
+    {id:'alcimar',  gd:4, gt:2, pf:5, pj:20, sr:2},
+    {id:'adenoque', gd:3, gt:2, pf:6, pj:16, sr:0},
+    {id:'marcos',   gd:2, gt:4, pf:4, pj:18, sr:2},
+    {id:'dina',     gd:2, gt:5, pf:5, pj:20, sr:2}
   ],
   titulos:{rei:'paulo', gateiro:'dina'},
   rodadas:[]
@@ -896,7 +898,19 @@ Object.assign(window, {go, toggleSom, toggleManage, toggleAdd, savePlayer, autoM
   startGame, encerrar, inacabada, confirmGame});
 
 /* ---------------- início ---------------- */
+/* a noite de 07/09 entrou sem PJ; quem já a tem guardada recebe a contagem da folha */
+function migrarSemente(){
+  SEMENTE_NOITES.forEach(sem => {
+    const n = NOITES.find(x => x.id === sem.id);
+    if(n && (n.resumo||[]).some(r => r.pj === null || r.pj === undefined)){
+      n.resumo = sem.resumo.map(r => ({...r}));
+      n.nota = sem.nota;
+    }
+  });
+}
+
 const tinha = carregar();
+migrarSemente();
 if(!tinha){
   PLAYERS = SEMENTE_JOGADORES.map(p => ({...p}));
   NOITES  = SEMENTE_NOITES.map(n => ({...n}));
