@@ -87,6 +87,7 @@
 
   <!-- MESA -->
   <section class="screen" id="s-table">
+    <div id="fecharMesaBox"></div>
     <div class="row">
       <div><span class="eyebrow">Passo 2</span><h2 class="title">Montar a mesa</h2></div>
       <button class="btn ghost sm" onclick="autoMesa()">Sortear</button>
@@ -101,7 +102,7 @@
         <div class="seat A s" data-seat="A2" tabindex="0"></div>
         <div class="seat B w" data-seat="B2" tabindex="0"></div>
       </div>
-      <p class="foot-note" style="text-align:center">Parceiros sentam de frente. Arraste da fila para o lugar — ou toque no nome e depois na cadeira.</p>
+      <p class="foot-note" style="text-align:center">Parceiros sentam de frente. Toque num jogador e depois na cadeira para trocar de lugar — ou arraste. Para tirar da mesa, arraste até a fila.</p>
     </div>
     <div class="card" id="filaBox">
       <div class="row"><span class="eyebrow">Fila de espera</span><b class="eyebrow" id="filaCount"></b></div>
@@ -122,11 +123,8 @@
     <div class="duo" id="duoWrap"></div>
     <div class="banner info" id="liveBanner"></div>
     <button class="btn" id="fimBtn" onclick="encerrar()" hidden>Encerrar</button>
-    <div style="display:flex; gap:8px">
-      <button class="btn ghost" style="flex:1" onclick="inacabada()">Encerrar sem resultado</button>
-      <button class="btn ghost" style="flex:1" onclick="go('s-table')">Cancelar</button>
-    </div>
-    <p class="foot-note">"Sem resultado" é para quando a noite acaba no meio da partida: fica registrada, mas não lança nada para ninguém.</p>
+    <button class="btn ghost" onclick="go('s-table')">Mesa</button>
+    <p class="foot-note">"Mesa" volta para montar as duplas. A partida em andamento não é registrada.</p>
   </section>
 
   <!-- RESUMO -->
@@ -149,7 +147,7 @@
       <div style="height:8px"></div>
       <div id="rodizioBox"></div>
     </div>
-    <button class="btn" id="sumBtn" onclick="confirmGame()">Confirmar e montar próxima mesa</button>
+    <button class="btn" id="sumBtn" onclick="confirmGame()">Confirmar Placar</button>
     <button class="btn ghost" onclick="go('s-live')">Corrigir placar</button>
   </section>
 

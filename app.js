@@ -525,8 +525,11 @@ function unseat(id){
 }
 function tapChip(id){ sel = (sel === id) ? null : id; renderTable(); }
 function tapSeat(seat){
-  if(sel){ place(sel, seat); return; }
-  if(seats[seat]) unseat(seats[seat]);
+  if(sel){                       // já havia alguém escolhido: troca de lugar
+    if(seats[seat] === sel){ sel = null; renderTable(); return; }
+    place(sel, seat); return;
+  }
+  if(seats[seat]){ sel = seats[seat]; renderTable(); return; }   // escolhe quem está sentado
 }
 function renderTable(){
   fila = fila.filter(id => sala.includes(id) && !seatOf(id));
@@ -535,7 +538,9 @@ function renderTable(){
   document.querySelectorAll('.seat').forEach(el => {
     const id = seats[el.dataset.seat];
     el.classList.toggle('filled', !!id);
-    el.innerHTML = id ? `<span class="av">${P(id).ini}</span>${P(id).curto}` : 'cadeira livre';
+    el.classList.toggle('sel', !!id && sel === id);
+    el.innerHTML = id ? `<span class="av">${P(id).ini}</span>${P(id).curto}`
+                      : (sel ? 'sentar aqui' : 'cadeira livre');
     el.dataset.pid = id || '';
   });
   document.getElementById('filaChips').innerHTML = fila.length
@@ -545,6 +550,15 @@ function renderTable(){
   document.getElementById('filaRule').innerHTML = fila.length === 0
     ? 'Sem fila: a partida <b>só encerra com gato (4 × 0)</b>. Qualquer outro 4 reinicia.'
     : 'Com fila: encerra a partir de 4 pontos. <b>4 × 0 é gato</b>, o resto é partida fechada.';
+
+  const fm = document.getElementById('fecharMesaBox');
+  if(fm){
+    fm.innerHTML = (noite.aberta && souMarcador())
+      ? `<button class="btn ghost" id="btnFecharMesa">Fechar os trabalhos</button><div style="height:14px"></div>`
+      : '';
+    const bfm = document.getElementById('btnFecharMesa');
+    if(bfm) bfm.onclick = fechar;
+  }
 
   const ok = Object.values(seats).filter(Boolean).length === 4;
   const btn = document.getElementById('startBtn');
@@ -685,11 +699,8 @@ function registrar(o){
   noite.rodadas.push(r); renderHist(); renderRank();
   publicar();
 }
-function inacabada(){
-  if(!game) return;
-  registrar({tipo:'inac', pa:game.A, pb:game.B});
-  game = null; toast('Partida registrada sem resultado'); go('s-table');
-}
+/* Partida abandonada no meio não é registrada: se não teve resultado, não foi
+   partida. A reiniciada (sem fila, sem gato) continua sendo registrada sozinha. */
 
 /* ---------------- rodízio ---------------- */
 function calcRodizio(){
@@ -1004,7 +1015,7 @@ document.getElementById('npApelido').addEventListener('keydown', e => {
 
 /* funções chamadas pelo HTML */
 Object.assign(window, {go, toggleSom, toggleManage, toggleAdd, savePlayer, autoMesa,
-  startGame, encerrar, inacabada, confirmGame});
+  startGame, encerrar, confirmGame});
 
 /* ---------------- início ---------------- */
 /* a noite de 07/09 entrou sem PJ; quem já a tem guardada recebe a contagem da folha */

@@ -227,3 +227,6 @@ table.rank td:nth-child(2){max-width:112px; overflow:hidden; text-overflow:ellip
 .faixa-teste{background:#7C4A21; color:#FFE9CF; font-size:11.5px; letter-spacing:.06em;
   text-align:center; padding:6px 10px; font-weight:600}
 .faixa-teste a{color:#FFD9A8; margin-left:8px}
+
+/* cadeira escolhida, para trocar de lugar */
+.seat.sel{border-color:var(--accent-2); box-shadow:0 0 0 2px rgba(245,158,11,.35); background:rgba(245,158,11,.18)}
