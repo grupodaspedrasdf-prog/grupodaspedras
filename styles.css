@@ -212,3 +212,13 @@ table.rank.mini th:first-child{text-align:left}
 table.rank th, table.rank td{font-size:13.5px}
 table.rank td:nth-child(2){max-width:112px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .parcial{color:var(--muted); font-size:11px; vertical-align:super}
+
+/* aproveitamento */
+.apr{display:flex; align-items:baseline; gap:10px; padding:9px 0 4px}
+.apr-nome{font-size:14px; font-weight:600; flex:none}
+.apr-det{flex:1; font-size:11px; color:var(--muted); letter-spacing:.02em}
+.apr-num{font-family:'Bebas Neue',Impact,sans-serif; font-size:22px; line-height:1; color:var(--accent-2)}
+.apr-num small{font-size:12px; margin-left:1px}
+.barra{height:5px; border-radius:3px; background:var(--surface-2); overflow:hidden; margin-bottom:6px}
+.barra i{display:block; height:100%; border-radius:3px;
+  background:linear-gradient(90deg, var(--accent), var(--accent-2))}

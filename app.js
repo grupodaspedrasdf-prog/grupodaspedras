@@ -41,11 +41,16 @@ const P = id => PLAYERS.find(p => p.id === id) || {id, nome:'—', curto:'—', 
 /* soma de todas as noites fechadas */
 function acum(){
   const m = {};
-  const zero = () => ({gd:0, gt:0, pf:0, pj:0, reis:0, gateiros:0, pjParcial:false});
+  /* gdC/pfC/gtC = só das noites que registram participação, para o aproveitamento bater */
+  const zero = () => ({gd:0, gt:0, pf:0, pj:0, sr:0, gdC:0, pfC:0, gtC:0, reis:0, gateiros:0, pjParcial:false});
   NOITES.forEach(n => {
     (n.resumo||[]).forEach(r => { m[r.id] = m[r.id] || zero();
       m[r.id].gd += r.gd||0; m[r.id].gt += r.gt||0; m[r.id].pf += r.pf||0;
-      if(r.pj === null || r.pj === undefined) m[r.id].pjParcial = true; else m[r.id].pj += r.pj; });
+      if(r.pj === null || r.pj === undefined){ m[r.id].pjParcial = true; }
+      else {
+        m[r.id].pj += r.pj; m[r.id].sr += r.sr||0;
+        m[r.id].gdC += r.gd||0; m[r.id].pfC += r.pf||0; m[r.id].gtC += r.gt||0;
+      } });
     if(n.titulos){
       if(n.titulos.rei){ m[n.titulos.rei] = m[n.titulos.rei] || zero(); m[n.titulos.rei].reis++; }
       if(n.titulos.gateiro){ m[n.titulos.gateiro] = m[n.titulos.gateiro] || zero(); m[n.titulos.gateiro].gateiros++; }
@@ -54,6 +59,12 @@ function acum(){
   return m;
 }
 const saldo = t => (t.gd||0) - (t.gt||0);
+/* Contas do aproveitamento — só sobre as noites que registram quem sentou.
+   A noite de 07/09 veio do papel sem esse dado e fica de fora destas quatro. */
+const decididas = t => (t.pj||0) - (t.sr||0);          // partidas com resultado em que jogou
+const vitorias  = t => (t.gdC||0) + (t.pfC||0);
+const ds = t => decididas(t) - vitorias(t) - (t.gtC||0);  // derrotas sem gato
+const aproveitamento = t => { const d = decididas(t); return d > 0 ? vitorias(t)/d : null; };
 
 /* ---------------- som ---------------- */
 let ctxAudio=null, master=null, somLigado=true;
@@ -222,7 +233,7 @@ async function fechar(){
     renderRank(); renderHist(); go('s-rank'); return;
   }
   const resumo = Object.entries(noite.parcial)
-    .map(([id,d]) => ({id, gd:d.gd||0, gt:d.gt||0, pf:d.pf||0, pj:d.pj||0}))
+    .map(([id,d]) => ({id, gd:d.gd||0, gt:d.gt||0, pf:d.pf||0, pj:d.pj||0, sr:d.sr||0}))
     .filter(r => r.gd+r.gt+r.pf+r.pj > 0)
     .sort((a,b) => (b.gd-b.gt)-(a.gd-a.gt) || b.pf-a.pf || b.gd-a.gd);
 
@@ -289,6 +300,23 @@ function renderRank(){
   if(bf) bf.onclick = fechar;
   if(ba) ba.onclick = abrir;
 
+  const comApr = lista.map(x => ({...x, ap: aproveitamento(x.t), pd: decididas(x.t), d: ds(x.t)}))
+                      .filter(x => x.ap !== null)
+                      .sort((a,b) => b.ap - a.ap);
+  document.getElementById('aproveita').innerHTML = comApr.length
+    ? `<div class="card"><div class="row" style="margin-bottom:4px">
+         <span class="eyebrow">Aproveitamento</span>
+         <span class="eyebrow">vitórias ÷ partidas decididas</span></div>
+       ${comApr.map(x => `<div class="apr">
+          <span class="apr-nome">${x.p.nome}</span>
+          <span class="apr-det">${vitorias(x.t)}V · ${x.t.gtC + x.d}D · ${x.pd} decididas</span>
+          <span class="apr-num">${Math.round(x.ap*100)}<small>%</small></span>
+        </div>
+        <div class="barra"><i style="width:${Math.round(x.ap*100)}%"></i></div>`).join('')}
+       <p class="foot-note" style="margin-top:10px">Partidas reiniciadas e sem resultado não entram — não houve vitória nem derrota nelas.${
+         comApr.some(x => x.t.pjParcial) ? ' A noite de 07/09 também fica de fora: veio do papel sem o registro de quem sentou.' : ''}</p></div>`
+    : '';
+
   const comTit = lista.filter(x => x.t.reis + x.t.gateiros > 0)
                       .sort((a,b) => (b.t.reis-a.t.reis) || (a.t.gateiros-b.t.gateiros));
   document.getElementById('coroas').innerHTML = comTit.length
@@ -316,7 +344,7 @@ function renderRank(){
   salvar();
 }
 function lanc(id, campo, n){
-  noite.parcial[id] = noite.parcial[id] || {gd:0, gt:0, pf:0, pj:0};
+  noite.parcial[id] = noite.parcial[id] || {gd:0, gt:0, pf:0, pj:0, sr:0};
   noite.parcial[id][campo] = (noite.parcial[id][campo]||0) + n;
 }
 const naMesa = () => [seats.A1, seats.A2, seats.B1, seats.B2].filter(Boolean);
@@ -617,7 +645,7 @@ function registrar(o){
   const r = {rid:'r'+Date.now()+Math.random().toString(36).slice(2,5), hora:horaAgora(),
              a:game.nA, b:game.nB, pa:o.pa, pb:o.pb, tipo:o.tipo, aleijado:false,
              idsV:[], idsL:[], jogaram};
-  jogaram.forEach(id => lanc(id,'pj',1));
+  jogaram.forEach(id => { lanc(id,'pj',1); lanc(id,'sr',1); });
   noite.rodadas.push(r); renderHist(); renderRank();
 }
 function inacabada(){
@@ -716,7 +744,7 @@ function apagarRodada(rid){
   const r = noite.rodadas.find(x => x.rid === rid); if(!r) return;
   if(r.tipo === 'gato'){ r.idsV.forEach(id => lanc(id,'gd',-1)); r.idsL.forEach(id => lanc(id,'gt',-1)); }
   else if(r.tipo === 'pf') r.idsV.forEach(id => lanc(id,'pf',-1));
-  (r.jogaram||[]).forEach(id => lanc(id,'pj',-1));
+  (r.jogaram||[]).forEach(id => { lanc(id,'pj',-1); if(r.tipo==='rein'||r.tipo==='inac') lanc(id,'sr',-1); });
   noite.rodadas = noite.rodadas.filter(x => x.rid !== rid);
   renderRank(); renderHist(); toast('Rodada apagada e lançamentos desfeitos');
 }
@@ -771,9 +799,10 @@ function renderHist(){
           <div class="tit-card rei">${iconeRei(30)}<div><span class="eyebrow">Rei dos Gatos</span><b>${P(rei).nome}</b></div></div>
           ${gat ? `<div class="tit-card gat">${iconeGateiro(30)}<div><span class="eyebrow">Gateiro</span><b>${P(gat).nome}</b></div></div>` : ''}
         </div>` : ''}
-        <table class="rank mini"><thead><tr><th>Jogador</th><th>PJ</th><th>GD</th><th>GT</th><th>PF</th><th>Saldo</th></tr></thead>
+        <table class="rank mini"><thead><tr><th>Jogador</th><th>PJ</th><th>GD</th><th>GT</th><th>PF</th><th>DS</th><th>Saldo</th></tr></thead>
         <tbody>${(n.resumo||[]).map(r => { const s = r.gd-r.gt;
-          return `<tr><td style="text-align:left;font-weight:600">${P(r.id).nome}</td><td>${(r.pj===null||r.pj===undefined)?'—':r.pj}</td><td>${r.gd}</td><td>${r.gt}</td><td>${r.pf}</td>
+          const dsN = (r.pj===null||r.pj===undefined) ? null : (r.pj - (r.sr||0)) - r.gd - r.pf - r.gt;
+          return `<tr><td style="text-align:left;font-weight:600">${P(r.id).nome}</td><td>${(r.pj===null||r.pj===undefined)?'—':r.pj}</td><td>${r.gd}</td><td>${r.gt}</td><td>${r.pf}</td><td>${dsN===null?'—':dsN}</td>
           <td class="${s>0?'pos-good':s<0?'pos-bad':''}">${s>0?'+':''}${s}</td></tr>`; }).join('')}</tbody></table>
         ${(n.rodadas||[]).length ? `<div style="height:12px"></div><span class="eyebrow">Rodadas</span>
           <div class="card" style="margin-top:8px">${n.rodadas.map(h => linhaRodada(h, false)).join('')}</div>` : ''}

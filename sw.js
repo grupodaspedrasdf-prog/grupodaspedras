@@ -1,6 +1,6 @@
 /* Service worker — deixa o app abrir sem internet.
    Ao publicar uma versão nova, mude o número do CACHE. */
-const CACHE = 'pedras-v2';
+const CACHE = 'pedras-v3';
 const ARQUIVOS = [
   './',
   './index.html',
