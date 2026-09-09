@@ -15,7 +15,13 @@ service cloud.firestore {
         allow read, write: if request.auth != null;
       }
 
-      // noites: podem ser criadas e lidas, NUNCA alteradas ou apagadas.
+      // noite em andamento: viva e mutável. Qualquer aparelho do grupo pode
+      // marcar, assumir a mesa, e apagá-la ao fechar os trabalhos.
+      match /abertas/{noiteId} {
+        allow read, write: if request.auth != null;
+      }
+
+      // noites fechadas: podem ser criadas e lidas, NUNCA alteradas ou apagadas.
       // É a regra "não há reabertura" garantida pelo servidor.
       match /noites/{noiteId} {
         allow read:   if request.auth != null;

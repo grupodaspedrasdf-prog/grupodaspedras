@@ -4,7 +4,8 @@
    partida fechada (4x1/2/3, só com fila), reiniciada e sem resultado.
    ============================================================ */
 
-import { iniciarNuvem, enviarNoite, baixarNoites, salvarJogadores, baixarJogadores, estadoNuvem } from './sync.js';
+import { iniciarNuvem, enviarNoite, baixarNoites, salvarJogadores, baixarJogadores,
+         estadoNuvem, publicarAberta, apagarAberta, assistirAberta, APARELHO } from './sync.js';
 
 /* ---------------- dados ---------------- */
 const SEMENTE_JOGADORES = [
@@ -37,6 +38,10 @@ let NOITES  = [];
 let noite   = {aberta:false, codigo:null, id:null, rodadas:[], parcial:{}};
 let sala = [], seats = {A1:null,A2:null,B1:null,B2:null}, fila = [], seguidas = {};
 let game = null, plano = null, aberta = null;
+/* mesa compartilhada: quem está com a marcação, e o que a nuvem diz */
+let marcador = APARELHO;          // quem este aparelho acha que está marcando
+let nuvemAberta = null;           // noite em andamento como está na nuvem
+const souMarcador = () => !nuvemAberta || nuvemAberta.marcador === APARELHO;
 
 const P = id => PLAYERS.find(p => p.id === id) || {id, nome:'—', curto:'—', ini:'??'};
 
@@ -225,7 +230,7 @@ function abrir(){
   while(NOITES.some(x => x.id === id)){ n++; id = 'PEDRAS-'+d.id+'-'+n; }
   noite = {aberta:true, id, codigo:'PEDRAS-'+d.curta, dia:d.longa, abriu:d.hora, rodadas:[], parcial:{}};
   seguidas = {};
-  renderRank(); renderHist(); toast('Trabalhos abertos · '+noite.codigo); go('s-room');
+  renderRank(); renderHist(); publicar(); toast('Trabalhos abertos · '+noite.codigo); go('s-room');
 }
 async function fechar(){
   const n = noite.rodadas.length;
@@ -261,9 +266,15 @@ async function fechar(){
   toast(rei ? `${P(rei).curto} é o Rei dos Gatos da noite` : 'Noite fechada');
   salvar();
   const ok = await enviarNoite(fechada);
+  if(ok === 'conflito'){
+    toast('Atenção: já existe uma noite fechada com este código na nuvem');
+  }
+  await apagarAberta(fechada.id);
   await salvarJogadores(PLAYERS);
+  nuvemAberta = null;
   renderRank();
-  toast(ok ? 'Noite enviada ao grupo' : 'Salvo aqui — envio pendente, sem internet');
+  if(ok === true) toast('Noite enviada ao grupo');
+  else if(ok === false) toast('Salvo aqui — envio pendente, sem internet');
 }
 function confirmarSimples(msg){ return window.confirm(msg); }
 
@@ -301,6 +312,18 @@ function renderRank(){
   const bf = document.getElementById('btnFechar'), ba = document.getElementById('btnAbrir');
   if(bf) bf.onclick = fechar;
   if(ba) ba.onclick = abrir;
+
+  const box = document.getElementById('mesaBox');
+  if(nuvemAberta && !souMarcador()){
+    box.innerHTML = `<div class="alerta ok" style="align-items:center">
+        <span>Outro aparelho está marcando <b>${nuvemAberta.codigo}</b> — ${(nuvemAberta.rodadas||[]).length} rodada${(nuvemAberta.rodadas||[]).length===1?'':'s'}.
+        Você acompanha em tempo real, sem poder alterar.</span></div>
+      <div style="height:8px"></div>
+      <button class="btn ghost" id="btnAssumir">Assumir a marcação</button><div style="height:10px"></div>`;
+    document.getElementById('btnAssumir').onclick = assumirMesa;
+    if(bf) bf.disabled = true;
+    if(ba) ba.disabled = true;
+  } else box.innerHTML = '';
 
   const comApr = lista.map(x => ({...x, ap: aproveitamento(x.t), pd: decididas(x.t), d: ds(x.t)}))
                       .filter(x => x.ap !== null)
@@ -515,8 +538,9 @@ function renderTable(){
 
   const ok = Object.values(seats).filter(Boolean).length === 4;
   const btn = document.getElementById('startBtn');
-  btn.disabled = !ok || !noite.aberta;
-  btn.textContent = noite.aberta ? 'Iniciar partida' : 'Abra os trabalhos primeiro';
+  btn.disabled = !ok || !noite.aberta || !souMarcador();
+  btn.textContent = !souMarcador() ? 'Outro aparelho está marcando'
+                  : noite.aberta ? 'Iniciar partida' : 'Abra os trabalhos primeiro';
   bindDrag(); salvar();
 }
 function autoMesa(){
@@ -578,7 +602,7 @@ function startGame(){
   fila.forEach(id => seguidas[id] = 0);
   game = {A:0, B:0, fila:fila.length > 0, nA:nomes('A'), nB:nomes('B'), fim:null, som:null};
   document.getElementById('liveMode').textContent = game.fila ? fila.length+' na fila' : 'sem fila';
-  renderLive(); go('s-live');
+  renderLive(); publicar(); go('s-live');
 }
 function avaliar(){
   if(!game) return null;
@@ -649,6 +673,7 @@ function registrar(o){
              idsV:[], idsL:[], jogaram};
   jogaram.forEach(id => { lanc(id,'pj',1); lanc(id,'sr',1); });
   noite.rodadas.push(r); renderHist(); renderRank();
+  publicar();
 }
 function inacabada(){
   if(!game) return;
@@ -739,6 +764,7 @@ function confirmGame(){
   game = null; plano = null;
   renderRank(); renderHist(); renderTable();
   go('s-table'); toast('Rodada gravada · próxima mesa montada');
+  publicar();
 }
 
 /* ---------------- histórico ---------------- */
@@ -748,7 +774,7 @@ function apagarRodada(rid){
   else if(r.tipo === 'pf') r.idsV.forEach(id => lanc(id,'pf',-1));
   (r.jogaram||[]).forEach(id => { lanc(id,'pj',-1); if(r.tipo==='rein'||r.tipo==='inac') lanc(id,'sr',-1); });
   noite.rodadas = noite.rodadas.filter(x => x.rid !== rid);
-  renderRank(); renderHist(); toast('Rodada apagada e lançamentos desfeitos');
+  renderRank(); renderHist(); publicar(); toast('Rodada apagada e lançamentos desfeitos');
 }
 function expandir(cod){ aberta = (aberta === cod) ? null : cod; renderHist(); }
 const rotulo = h => h.aleijado ? 'Aleijado'
@@ -813,6 +839,54 @@ function renderHist(){
   }).join('') : '<p class="foot-note">Nenhuma noite fechada ainda.</p>';
 }
 
+/* ---------------- mesa compartilhada ---------------- */
+let publicando = null;
+function publicar(){
+  if(!noite.aberta || !souMarcador()) return;
+  clearTimeout(publicando);
+  publicando = setTimeout(() => {
+    publicarAberta({
+      id:noite.id, codigo:noite.codigo, dia:noite.dia, abriu:noite.abriu,
+      rodadas:noite.rodadas, parcial:noite.parcial,
+      sala, seats, fila, seguidas
+    });
+  }, 800);
+}
+function adotarDaNuvem(a){
+  noite = {aberta:true, id:a.id, codigo:a.codigo, dia:a.dia, abriu:a.abriu,
+           rodadas:a.rodadas||[], parcial:a.parcial||{}};
+  sala = a.sala||[]; seats = a.seats||{A1:null,A2:null,B1:null,B2:null};
+  fila = a.fila||[]; seguidas = a.seguidas||{}; game = null;
+  renderRank(); renderRoom(); renderTable(); renderHist();
+}
+function assumirMesa(){
+  if(!nuvemAberta) return;
+  adotarDaNuvem(nuvemAberta);
+  marcador = APARELHO;
+  nuvemAberta = {...nuvemAberta, marcador: APARELHO};
+  publicarAberta({
+    id:noite.id, codigo:noite.codigo, dia:noite.dia, abriu:noite.abriu,
+    rodadas:noite.rodadas, parcial:noite.parcial, sala, seats, fila, seguidas
+  });
+  renderRank(); renderTable();
+  toast('Você assumiu a marcação da mesa');
+}
+function aoMudarNuvem(lista){
+  const antes = nuvemAberta && nuvemAberta.marcador;
+  nuvemAberta = lista && lista.length ? lista[0] : null;
+
+  if(!nuvemAberta){                       // a noite foi fechada em outro aparelho
+    if(noite.aberta && !souMarcador()){ noite = {aberta:false, codigo:null, id:null, rodadas:[], parcial:{}}; }
+    renderRank(); renderHist(); return;
+  }
+  if(nuvemAberta.marcador === APARELHO){ renderRank(); return; }
+
+  // outro aparelho está marcando: acompanha em modo leitura
+  if(antes === APARELHO) toast('Outro aparelho assumiu a marcação');
+  if(noite.aberta || !noite.id) adotarDaNuvem(nuvemAberta);
+  renderRank(); renderHist(); renderTable();
+}
+
 /* ---------------- salvamento local ---------------- */
 const CHAVE = 'pedras-v2';
 function salvar(){
@@ -871,6 +945,8 @@ async function sincronizar(){
   }
   // reenvia noites que ficaram só aqui (fechadas offline)
   for(const n of NOITES){ if(!n._naNuvem) await enviarNoite(n); }
+  assistirAberta(aoMudarNuvem);
+  if(noite.aberta) publicar();
   renderRank(); renderHist(); renderNuvem(); salvar();
 }
 

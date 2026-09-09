@@ -22,6 +22,15 @@ const firebaseConfig = {
    Para abrir um segundo grupo um dia, basta trocar aqui. */
 export const GRUPO = 'pedras-df-2026';
 
+/* Identidade deste aparelho — para saber quem está com a marcação da mesa. */
+export const APARELHO = (() => {
+  try{
+    let id = localStorage.getItem('pedras-aparelho');
+    if(!id){ id = 'ap-' + Math.random().toString(36).slice(2,10); localStorage.setItem('pedras-aparelho', id); }
+    return id;
+  }catch(e){ return 'ap-' + Math.random().toString(36).slice(2,10); }
+})();
+
 let fs = null;          // funções do Firestore, carregadas sob demanda
 let db = null;
 let pronto = false;
@@ -66,11 +75,53 @@ export async function enviarNoite(noite){
     noite._naNuvem = true;
     return true;
   }catch(e){
-    // as regras bloqueiam alterar noite já enviada — nesse caso ela já está lá
-    if(e && e.code === 'permission-denied'){ noite._naNuvem = true; return true; }
+    /* As regras proíbem alterar noite já enviada. Se caiu aqui, ou a noite já
+       está na nuvem, ou outro aparelho fechou uma noite com o mesmo código —
+       e nesse caso NÃO se pode fingir que deu certo. */
+    if(e && e.code === 'permission-denied'){
+      const igual = await mesmaNoiteNaNuvem(noite);
+      if(igual){ noite._naNuvem = true; return true; }
+      return 'conflito';
+    }
     console.warn('[nuvem] envio', e && e.message);
     return false;
   }
+}
+
+async function mesmaNoiteNaNuvem(noite){
+  try{
+    const d = await fs.getDoc(fs.doc(db, 'grupos', GRUPO, 'noites', noite.id));
+    if(!d.exists()) return false;
+    const lá = d.data();
+    return (lá.totais && noite.totais && lá.totais.partidas === noite.totais.partidas)
+        && (lá.resumo||[]).length === (noite.resumo||[]).length;
+  }catch(e){ return false; }
+}
+
+/* ---------- noite em andamento (mutável, some ao fechar os trabalhos) ---------- */
+export async function publicarAberta(estado){
+  if(!pronto && !(await iniciarNuvem())) return false;
+  try{
+    await fs.setDoc(fs.doc(db, 'grupos', GRUPO, 'abertas', estado.id),
+      {...estado, marcador: APARELHO, atualizadoEm: Date.now()});
+    return true;
+  }catch(e){ console.warn('[nuvem] aberta', e && e.message); return false; }
+}
+
+export async function apagarAberta(id){
+  if(!pronto) return false;
+  try{ await fs.deleteDoc(fs.doc(db, 'grupos', GRUPO, 'abertas', id)); return true; }
+  catch(e){ return false; }
+}
+
+/* Ouve a noite em andamento em tempo real. Devolve uma função para parar de ouvir. */
+export function assistirAberta(cb){
+  if(!pronto) return () => {};
+  try{
+    return fs.onSnapshot(fs.collection(db, 'grupos', GRUPO, 'abertas'),
+      snap => cb(snap.docs.map(d => ({...d.data(), id:d.id}))),
+      err => console.warn('[nuvem] escuta', err && err.message));
+  }catch(e){ return () => {}; }
 }
 
 export async function baixarNoites(){
