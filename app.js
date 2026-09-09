@@ -339,7 +339,7 @@ function renderRank(){
         ${par.map(([id,d]) => `<div class="delta"><span>${P(id).nome}</span><b>${[
           d.gd?`<span class="tag-good">+${d.gd} GD</span>`:'',
           d.gt?`<span class="tag-bad">+${d.gt} GT</span>`:'',
-          d.pf?`+${d.pf} PF`:''].filter(Boolean).join(' · ')}</b></div>`).join('')}
+          d.pf?`+${d.pf} VI`:''].filter(Boolean).join(' · ')}</b></div>`).join('')}
       </div>` : '';
 
   renderNuvem();
@@ -713,7 +713,7 @@ function showSummary(){
   document.getElementById('sumDeltas').innerHTML = g.fim.tipo === 'gato'
     ? venc.map(n => `<div class="delta"><span>${n}</span><b class="tag-good">+1 GD</b></div>`).join('')
       + perd.map(n => `<div class="delta"><span>${n}</span><b class="tag-bad">+1 GT</b></div>`).join('')
-    : venc.map(n => `<div class="delta"><span>${n}</span><b class="tag-good">+1 PF</b></div>`).join('')
+    : venc.map(n => `<div class="delta"><span>${n}</span><b class="tag-good">+1 VI</b></div>`).join('')
       + perd.map(n => `<div class="delta"><span>${n}</span><b style="color:var(--muted)">sem lançamento</b></div>`).join('');
   plano = calcRodizio(); renderRodizio(); go('s-sum');
 }
@@ -801,7 +801,7 @@ function renderHist(){
           <div class="tit-card rei">${iconeRei(30)}<div><span class="eyebrow">Rei dos Gatos</span><b>${P(rei).nome}</b></div></div>
           ${gat ? `<div class="tit-card gat">${iconeGateiro(30)}<div><span class="eyebrow">Gateiro</span><b>${P(gat).nome}</b></div></div>` : ''}
         </div>` : ''}
-        <table class="rank mini"><thead><tr><th>Jogador</th><th>PJ</th><th>GD</th><th>GT</th><th>PF</th><th>DS</th><th>Saldo</th></tr></thead>
+        <table class="rank mini"><thead><tr><th>Jogador</th><th>PJ</th><th>GD</th><th>GT</th><th>VI</th><th>DE</th><th>Saldo</th></tr></thead>
         <tbody>${(n.resumo||[]).map(r => { const s = r.gd-r.gt;
           const dsN = (r.pj===null||r.pj===undefined) ? null : (r.pj - (r.sr||0)) - r.gd - r.pf - r.gt;
           return `<tr><td style="text-align:left;font-weight:600">${P(r.id).nome}</td><td>${(r.pj===null||r.pj===undefined)?'—':r.pj}</td><td>${r.gd}</td><td>${r.gt}</td><td>${r.pf}</td><td>${dsN===null?'—':dsN}</td>
