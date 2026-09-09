@@ -5,7 +5,7 @@
    ============================================================ */
 
 import { iniciarNuvem, enviarNoite, baixarNoites, salvarJogadores, baixarJogadores,
-         estadoNuvem, publicarAberta, apagarAberta, assistirAberta, APARELHO } from './sync.js';
+         estadoNuvem, publicarAberta, apagarAberta, assistirAberta, APARELHO, TESTE } from './sync.js';
 
 /* ---------------- dados ---------------- */
 const SEMENTE_JOGADORES = [
@@ -488,6 +488,16 @@ function renderRoom(){
             <span class="nm">${p.nome}<small>fora do rodízio · histórico mantido</small></span>
             <button class="act" data-acao="reativar" data-id="${p.id}" aria-label="Trazer ${p.curto} de volta">${ICON.undo}</button></div>`).join('') : '');
 
+  const rec = document.getElementById('recarregaBox');
+  if(rec){
+    rec.innerHTML = gerenciar
+      ? `<div style="height:14px"></div><div class="row">
+           <span class="foot-note" style="flex:1">Aparelho com dado estranho? Busque tudo de novo do grupo.</span>
+           <button class="iconbtn" id="btnRecarrega">Recarregar do grupo</button></div>`
+      : '';
+    const br = document.getElementById('btnRecarrega');
+    if(br) br.onclick = recarregarDoGrupo;
+  }
   document.getElementById('roomCount').textContent = sala.length + (sala.length===1?' jogador':' jogadores');
   const q = Math.max(0, sala.length - 4);
   document.getElementById('roomRule').innerHTML = sala.length < 4
@@ -888,7 +898,7 @@ function aoMudarNuvem(lista){
 }
 
 /* ---------------- salvamento local ---------------- */
-const CHAVE = 'pedras-v2';
+const CHAVE = TESTE ? 'pedras-teste-v2' : 'pedras-v2';
 function salvar(){
   try{
     localStorage.setItem(CHAVE, JSON.stringify({PLAYERS, NOITES, noite, sala, seats, fila, seguidas, game}));
@@ -909,18 +919,41 @@ function carregar(){
   }catch(e){ return false; }
 }
 function zerarTudo(){ try{ localStorage.removeItem(CHAVE); }catch(e){} location.reload(); }
+
+/* A tela inicial não tem mais botão de apagar. Fica só a marca de que está salvo,
+   e — no modo teste — a saída para limpar o aparelho. */
 function renderZerar(){
-  document.getElementById('zerar').innerHTML =
-    `<div class="row"><span class="foot-note">Guardado neste aparelho · <span id="salvo">pronto</span></span>
-     <button class="iconbtn" id="btnZerar">Recomeçar do zero</button></div>`;
-  document.getElementById('btnZerar').onclick = () => {
-    document.getElementById('zerar').innerHTML = `<div class="confirm" style="border-top:0">
-      <span>Apagar tudo <b>deste aparelho</b>? As noites já enviadas continuam na nuvem.</span>
+  const el = document.getElementById('zerar');
+  el.innerHTML = TESTE
+    ? `<div class="row"><span class="foot-note">MODO TESTE · <span id="salvo">pronto</span></span>
+       <button class="iconbtn" id="btnZerar">Limpar este aparelho</button></div>`
+    : `<div class="row"><span class="foot-note">Guardado neste aparelho · <span id="salvo">pronto</span></span></div>`;
+  const b = document.getElementById('btnZerar');
+  if(b) b.onclick = () => {
+    el.innerHTML = `<div class="confirm" style="border-top:0">
+      <span>Apagar os dados de teste <b>deste aparelho</b>?</span>
       <button class="btn sm danger" id="simZerar">Apagar</button>
       <button class="btn sm ghost" id="naoZerar">Não</button></div>`;
     document.getElementById('simZerar').onclick = zerarTudo;
     document.getElementById('naoZerar').onclick = renderZerar;
   };
+}
+
+/* Recarregar do grupo: refaz a cópia local a partir da nuvem, sem apagar nada
+   que ainda não tenha sido enviado. É a saída quando um aparelho fica estranho. */
+async function recarregarDoGrupo(){
+  toast('Buscando do grupo...');
+  const ok = await iniciarNuvem();
+  if(!ok){ toast('Sem internet — tente de novo mais tarde'); return; }
+  const [jog, noites] = await Promise.all([baixarJogadores(), baixarNoites()]);
+  if(jog && jog.length) PLAYERS = jog.map(p => ({...p}));
+  if(noites){
+    const pendentes = NOITES.filter(n => !n._naNuvem && !noites.some(c => c.id === n.id));
+    NOITES = [...noites, ...pendentes].sort((a,b) => (b.id > a.id ? 1 : -1));
+    migrarSemente();
+  }
+  renderRank(); renderRoom(); renderTable(); renderHist(); salvar();
+  toast(`Atualizado: ${NOITES.length} noite${NOITES.length===1?'':'s'} e ${PLAYERS.length} jogadores`);
 }
 
 /* ---------------- nuvem ---------------- */
@@ -993,6 +1026,13 @@ if(!tinha){
   sala    = PLAYERS.map(p => p.id);
   seats   = {A1:sala[0]||null, A2:sala[1]||null, B1:sala[2]||null, B2:sala[3]||null};
   fila    = sala.slice(4);
+}
+if(TESTE){
+  const f = document.createElement('div');
+  f.className = 'faixa-teste';
+  f.innerHTML = 'MODO TESTE — grupo separado, nada aqui afeta os dados reais ' +
+                '<a href="?teste=0">sair</a>';
+  document.body.insertBefore(f, document.querySelector('.appbar'));
 }
 renderSom(); renderRank(); renderRoom(); renderTable(); renderHist(); renderZerar();
 if(!gerenciar) toggleManage(), toggleManage();   // preenche os textos do botão Gerenciar

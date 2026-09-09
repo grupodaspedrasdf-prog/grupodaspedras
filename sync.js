@@ -18,9 +18,20 @@ const firebaseConfig = {
   appId: "1:764872755418:web:c3db22ed342962186a7de3"
 };
 
-/* Código do grupo: quem tem este identificador enxerga as noites.
-   Para abrir um segundo grupo um dia, basta trocar aqui. */
-export const GRUPO = 'pedras-df-2026';
+/* Modo teste: abrindo o app com ?teste=1 no fim do endereço, tudo passa a
+   acontecer num grupo separado — nuvem e celular. Nada encosta nos dados reais.
+   Fica valendo enquanto a aba estiver aberta; ?teste=0 sai. */
+export const TESTE = (() => {
+  try{
+    const p = new URLSearchParams(location.search);
+    if(p.get('teste') === '1'){ sessionStorage.setItem('pedras-teste','1'); return true; }
+    if(p.get('teste') === '0'){ sessionStorage.removeItem('pedras-teste'); return false; }
+    return sessionStorage.getItem('pedras-teste') === '1';
+  }catch(e){ return false; }
+})();
+
+/* Código do grupo: quem tem este identificador enxerga as noites. */
+export const GRUPO = TESTE ? 'pedras-teste' : 'pedras-df-2026';
 
 /* Identidade deste aparelho — para saber quem está com a marcação da mesa. */
 export const APARELHO = (() => {
