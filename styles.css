@@ -207,3 +207,8 @@ table.rank.mini th:first-child{text-align:left}
 
   border-radius:0 10px 10px 0; padding:11px 13px; font-size:13.5px; line-height:1.55; color:#C6D2E2}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* coluna PJ e marca de contagem incompleta */
+table.rank th, table.rank td{font-size:13.5px}
+table.rank td:nth-child(2){max-width:112px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.parcial{color:var(--muted); font-size:11px; vertical-align:super}

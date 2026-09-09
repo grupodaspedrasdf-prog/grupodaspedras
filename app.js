@@ -20,11 +20,11 @@ const SEMENTE_NOITES = [{
   totais:{partidas:24, gatos:8, aleijados:0, fechadas:14, sem:2},
   nota:'Folha de papel auditada: 8 gatos + 14 fechadas + 2 sem resultado = 24 partidas.',
   resumo:[
-    {id:'paulo',    gd:5, gt:3, pf:8},
-    {id:'alcimar',  gd:4, gt:2, pf:5},
-    {id:'adenoque', gd:3, gt:2, pf:6},
-    {id:'marcos',   gd:2, gt:4, pf:4},
-    {id:'dina',     gd:2, gt:5, pf:5}
+    {id:'paulo',    gd:5, gt:3, pf:8, pj:null},
+    {id:'alcimar',  gd:4, gt:2, pf:5, pj:null},
+    {id:'adenoque', gd:3, gt:2, pf:6, pj:null},
+    {id:'marcos',   gd:2, gt:4, pf:4, pj:null},
+    {id:'dina',     gd:2, gt:5, pf:5, pj:null}
   ],
   titulos:{rei:'paulo', gateiro:'dina'},
   rodadas:[]
@@ -41,10 +41,11 @@ const P = id => PLAYERS.find(p => p.id === id) || {id, nome:'—', curto:'—', 
 /* soma de todas as noites fechadas */
 function acum(){
   const m = {};
-  const zero = () => ({gd:0, gt:0, pf:0, reis:0, gateiros:0});
+  const zero = () => ({gd:0, gt:0, pf:0, pj:0, reis:0, gateiros:0, pjParcial:false});
   NOITES.forEach(n => {
     (n.resumo||[]).forEach(r => { m[r.id] = m[r.id] || zero();
-      m[r.id].gd += r.gd||0; m[r.id].gt += r.gt||0; m[r.id].pf += r.pf||0; });
+      m[r.id].gd += r.gd||0; m[r.id].gt += r.gt||0; m[r.id].pf += r.pf||0;
+      if(r.pj === null || r.pj === undefined) m[r.id].pjParcial = true; else m[r.id].pj += r.pj; });
     if(n.titulos){
       if(n.titulos.rei){ m[n.titulos.rei] = m[n.titulos.rei] || zero(); m[n.titulos.rei].reis++; }
       if(n.titulos.gateiro){ m[n.titulos.gateiro] = m[n.titulos.gateiro] || zero(); m[n.titulos.gateiro].gateiros++; }
@@ -221,8 +222,8 @@ async function fechar(){
     renderRank(); renderHist(); go('s-rank'); return;
   }
   const resumo = Object.entries(noite.parcial)
-    .map(([id,d]) => ({id, gd:d.gd||0, gt:d.gt||0, pf:d.pf||0}))
-    .filter(r => r.gd+r.gt+r.pf > 0)
+    .map(([id,d]) => ({id, gd:d.gd||0, gt:d.gt||0, pf:d.pf||0, pj:d.pj||0}))
+    .filter(r => r.gd+r.gt+r.pf+r.pj > 0)
     .sort((a,b) => (b.gd-b.gt)-(a.gd-a.gt) || b.pf-a.pf || b.gd-a.gd);
 
   const fechada = {
@@ -264,11 +265,14 @@ function renderRank(){
   document.getElementById('rankBody').innerHTML = lista.map((x,i) => {
     const s = saldo(x.t), ult = lista.length > 2 && i === lista.length-1;
     const tit = i===0 ? iconeRei(21) : ult ? iconeGateiro(21) : '';
+    const pj = x.t.pjParcial
+      ? (x.t.pj ? x.t.pj + '<span class="parcial" title="Há noite sem registro de participação">+</span>' : '—')
+      : x.t.pj;
     return `<tr><td>${i+1}</td>
       <td><span class="nome-tit">${tit}${x.p.nome}</span></td>
-      <td>${x.t.gd}</td><td>${x.t.gt}</td><td>${x.t.pf}</td>
+      <td>${pj}</td><td>${x.t.gd}</td><td>${x.t.gt}</td><td>${x.t.pf}</td>
       <td class="pts ${s>0?'pos-good':s<0?'pos-bad':''}">${s>0?'+':''}${s}</td></tr>`;
-  }).join('') || '<tr><td colspan="6" class="foot-note" style="text-align:left">Nenhuma noite fechada ainda.</td></tr>';
+  }).join('') || '<tr><td colspan="7" class="foot-note" style="text-align:left">Nenhuma noite fechada ainda.</td></tr>';
 
   document.getElementById('titulos').innerHTML = lista.length > 2
     ? `<div class="titulos">
@@ -312,9 +316,10 @@ function renderRank(){
   salvar();
 }
 function lanc(id, campo, n){
-  noite.parcial[id] = noite.parcial[id] || {gd:0, gt:0, pf:0};
-  noite.parcial[id][campo] += n;
+  noite.parcial[id] = noite.parcial[id] || {gd:0, gt:0, pf:0, pj:0};
+  noite.parcial[id][campo] = (noite.parcial[id][campo]||0) + n;
 }
+const naMesa = () => [seats.A1, seats.A2, seats.B1, seats.B2].filter(Boolean);
 
 /* ---------------- cadastro de jogadores ---------------- */
 let gerenciar=false, editando=null, confirmando=null;
@@ -608,8 +613,11 @@ function renderLive(){
 }
 function horaAgora(){ return dataHoje().hora; }
 function registrar(o){
+  const jogaram = naMesa();
   const r = {rid:'r'+Date.now()+Math.random().toString(36).slice(2,5), hora:horaAgora(),
-             a:game.nA, b:game.nB, pa:o.pa, pb:o.pb, tipo:o.tipo, aleijado:false, idsV:[], idsL:[]};
+             a:game.nA, b:game.nB, pa:o.pa, pb:o.pb, tipo:o.tipo, aleijado:false,
+             idsV:[], idsL:[], jogaram};
+  jogaram.forEach(id => lanc(id,'pj',1));
   noite.rodadas.push(r); renderHist(); renderRank();
 }
 function inacabada(){
@@ -684,9 +692,11 @@ function confirmGame(){
   const idsV = [seats[v+'1'], seats[v+'2']], idsL = [seats[l+'1'], seats[l+'2']];
   if(g.fim.tipo === 'gato'){ idsV.forEach(id => lanc(id,'gd',1)); idsL.forEach(id => lanc(id,'gt',1)); }
   else idsV.forEach(id => lanc(id,'pf',1));
+  const jogaram = [...idsV, ...idsL];
+  jogaram.forEach(id => lanc(id,'pj',1));
 
   noite.rodadas.push({rid:'r'+Date.now(), hora:horaAgora(), a:g.nA, b:g.nB, pa:g.A, pb:g.B,
-                      tipo:g.fim.tipo, aleijado:!!g.fim.aleijado, idsV, idsL});
+                      tipo:g.fim.tipo, aleijado:!!g.fim.aleijado, idsV, idsL, jogaram});
 
   if(plano.sai && plano.sai.length){
     plano.sai.forEach(id => { const s = seatOf(id); if(s) seats[s] = null; seguidas[id] = 0; });
@@ -706,6 +716,7 @@ function apagarRodada(rid){
   const r = noite.rodadas.find(x => x.rid === rid); if(!r) return;
   if(r.tipo === 'gato'){ r.idsV.forEach(id => lanc(id,'gd',-1)); r.idsL.forEach(id => lanc(id,'gt',-1)); }
   else if(r.tipo === 'pf') r.idsV.forEach(id => lanc(id,'pf',-1));
+  (r.jogaram||[]).forEach(id => lanc(id,'pj',-1));
   noite.rodadas = noite.rodadas.filter(x => x.rid !== rid);
   renderRank(); renderHist(); toast('Rodada apagada e lançamentos desfeitos');
 }
@@ -742,6 +753,14 @@ function renderHist(){
       </button>
       ${on ? `<div style="padding:0 14px 14px">
         ${n.nota ? `<div class="alerta ok"><svg width="15" height="15" viewBox="0 0 20 20" fill="none" style="flex:none;margin-top:1px"><path d="M4.5 10.5l3.5 3.5 7.5-8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>${n.nota}</span></div>` : ''}
+        ${(() => {
+          const somaPJ = (n.resumo||[]).reduce((x,r) => x + (r.pj||0), 0);
+          const esperado = (t.partidas||0) * 4;
+          if(!somaPJ) return '';
+          return somaPJ === esperado
+            ? `<p class="foot-note" style="margin-bottom:10px">Conferido: ${somaPJ} participações = ${t.partidas} partidas × 4 jogadores.</p>`
+            : `<div class="alerta"><span>Atenção: as participações somam ${somaPJ}, mas ${t.partidas} partidas deveriam dar ${esperado}.</span></div>`;
+        })()}
         <div class="chips" style="margin-bottom:10px">
           <span class="badge gato">${t.gatos||0} gatos</span>
           ${t.aleijados ? `<span class="badge mut">${t.aleijados} aleijados</span>` : ''}
@@ -752,9 +771,9 @@ function renderHist(){
           <div class="tit-card rei">${iconeRei(30)}<div><span class="eyebrow">Rei dos Gatos</span><b>${P(rei).nome}</b></div></div>
           ${gat ? `<div class="tit-card gat">${iconeGateiro(30)}<div><span class="eyebrow">Gateiro</span><b>${P(gat).nome}</b></div></div>` : ''}
         </div>` : ''}
-        <table class="rank mini"><thead><tr><th>Jogador</th><th>GD</th><th>GT</th><th>PF</th><th>Saldo</th></tr></thead>
+        <table class="rank mini"><thead><tr><th>Jogador</th><th>PJ</th><th>GD</th><th>GT</th><th>PF</th><th>Saldo</th></tr></thead>
         <tbody>${(n.resumo||[]).map(r => { const s = r.gd-r.gt;
-          return `<tr><td style="text-align:left;font-weight:600">${P(r.id).nome}</td><td>${r.gd}</td><td>${r.gt}</td><td>${r.pf}</td>
+          return `<tr><td style="text-align:left;font-weight:600">${P(r.id).nome}</td><td>${(r.pj===null||r.pj===undefined)?'—':r.pj}</td><td>${r.gd}</td><td>${r.gt}</td><td>${r.pf}</td>
           <td class="${s>0?'pos-good':s<0?'pos-bad':''}">${s>0?'+':''}${s}</td></tr>`; }).join('')}</tbody></table>
         ${(n.rodadas||[]).length ? `<div style="height:12px"></div><span class="eyebrow">Rodadas</span>
           <div class="card" style="margin-top:8px">${n.rodadas.map(h => linhaRodada(h, false)).join('')}</div>` : ''}
