@@ -135,6 +135,17 @@ export function assistirAberta(cb){
   }catch(e){ return () => {}; }
 }
 
+/* Ouve as noites fechadas em tempo real: quando outro aparelho fecha a noite,
+   o ranking de todos se atualiza sozinho. */
+export function assistirNoites(cb){
+  if(!pronto) return () => {};
+  try{
+    return fs.onSnapshot(fs.collection(db, 'grupos', GRUPO, 'noites'),
+      snap => cb(snap.docs.map(d => ({...d.data(), id:d.id, _naNuvem:true}))),
+      err => console.warn('[nuvem] escuta noites', err && err.message));
+  }catch(e){ return () => {}; }
+}
+
 export async function baixarNoites(){
   if(!pronto) return [];
   try{

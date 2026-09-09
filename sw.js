@@ -5,7 +5,7 @@
    - Com internet: sempre a versão mais recente (e o cache é atualizado).
    - Sem internet, ou rede lenta (mais de 3s): entra o cache e o app abre igual.
    Ao publicar uma versão nova, mude o número do CACHE. */
-const CACHE = 'pedras-v9';
+const CACHE = 'pedras-v10';
 const ARQUIVOS = [
   './',
   './index.html',
