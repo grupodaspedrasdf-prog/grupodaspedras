@@ -315,7 +315,7 @@ function renderRank(){
 
   document.getElementById('sessBox').innerHTML = noite.aberta
     ? `<div class="sess open"><div><b>Trabalhos abertos</b><span>${noite.codigo} · ${noite.rodadas.length} rodada${noite.rodadas.length===1?'':'s'} · desde ${noite.abriu}</span></div><span class="dot"></span></div>
-       <div style="height:10px"></div><button class="btn ghost" id="btnFechar">Fechar os trabalhos</button>`
+       <div style="height:10px"></div><button class="btn encerra" id="btnFechar">Fechar os trabalhos</button>`
     : `<div class="sess shut"><div><b>Trabalhos fechados</b><span>${NOITES.length ? `Última noite: ${NOITES[0].cod} · ${NOITES[0].totais.partidas} partidas` : 'Nenhuma noite registrada ainda'}</span></div></div>
        <div style="height:10px"></div><button class="btn" id="btnAbrir">Abrir os trabalhos</button>`;
   const bf = document.getElementById('btnFechar'), ba = document.getElementById('btnAbrir');
@@ -563,7 +563,7 @@ function renderTable(){
   const fm = document.getElementById('fecharMesaBox');
   if(fm){
     fm.innerHTML = (noite.aberta && souMarcador())
-      ? `<button class="btn ghost" id="btnFecharMesa">Fechar os trabalhos</button><div style="height:14px"></div>`
+      ? `<button class="btn encerra" id="btnFecharMesa">Fechar os trabalhos</button><div style="height:14px"></div>`
       : '';
     const bfm = document.getElementById('btnFecharMesa');
     if(bfm) bfm.onclick = fechar;
@@ -640,24 +640,22 @@ function startGame(){
 function avaliar(){
   if(!game) return null;
   const a = game.A, b = game.B, hi = Math.max(a,b), lo = Math.min(a,b);
+
+  /* Sem fila só vale gato, e gato é 4+ x 0. Se as duas duplas pontuaram, o gato
+     ficou impossível na mesma hora — não se espera chegar a 4. */
+  if(!game.fila && lo > 0) return {reinicia:true, pa:a, pb:b};
+
   if(hi < 4 || a === b) return null;
   const v = a > b ? 'A' : 'B';
   if(lo === 0) return {v, tipo:'gato', aleijado: hi >= 5};
-  return game.fila ? {v, tipo:'pf'} : {reinicia:true};
+  return {v, tipo:'pf'};
 }
 function addPt(t, d){
   if(!game) return;
   game[t] = Math.max(0, Math.min(8, game[t]+d));
-  const r = avaliar();
-  if(r && r.reinicia){
-    registrar({tipo:'rein', pa:game.A, pb:game.B});
-    game.A = 0; game.B = 0; game.som = null; renderLive();
-    const b = document.getElementById('liveBanner');
-    b.className = 'banner gato';
-    b.innerHTML = 'Ninguém na fila — <b>só vale gato</b>. Partida reiniciada em 0 × 0 e registrada.';
-    return;
-  }
   renderLive();
+  const r = avaliar();
+  if(r && r.reinicia) return;   // espera a confirmação, e o placar segue corrigível
   const marca = r ? r.tipo + (r.aleijado?'-alj':'') : null;
   if(marca && marca !== game.som){
     game.som = marca;
@@ -668,6 +666,14 @@ function addPt(t, d){
 function encerrar(){
   const r = avaliar(); if(!r || r.reinicia) return;
   game.fim = r; showSummary();
+}
+/* Recomeçar a partida: registra a reiniciada e zera o placar. Só depois do toque,
+   para dar tempo de corrigir uma marcação errada. */
+function recomecar(){
+  const r = avaliar(); if(!r || !r.reinicia) return;
+  registrar({tipo:'rein', pa:game.A, pb:game.B});
+  game.A = 0; game.B = 0; game.som = null;
+  renderLive(); toast('Partida reiniciada e registrada');
 }
 function renderLive(){
   const g = game, r = avaliar();
@@ -682,6 +688,14 @@ function renderLive(){
     </div>`;
   }).join('');
   const b = document.getElementById('liveBanner'), btn = document.getElementById('fimBtn');
+  const rec = document.getElementById('recBtn');
+  rec.hidden = !(r && r.reinicia);
+  if(r && r.reinicia){
+    b.className = 'banner aviso';
+    b.innerHTML = `<b>Gato impossível.</b> As duas duplas pontuaram (${g.A} × ${g.B}) e não há ninguém na fila. Corrija o placar se marcou errado, ou recomece a partida.`;
+    btn.hidden = true;
+    salvar(); return;
+  }
   if(r && r.aleijado){
     b.className='banner gato'; b.innerHTML = `<b>GATO ALEIJADO!</b> ${Math.max(g.A,g.B)} × 0 — gato acima de 4.`;
   } else if(r && r.tipo === 'gato'){
@@ -737,7 +751,11 @@ function renderRodizio(){
   let html = `<p class="foot-note" style="line-height:1.6">${plano.txt}</p>`;
   if(plano.tipo === 'pedra' || plano.tipo === 'pedra-vantagem'){
     html += `<div style="height:10px"></div><div class="chips">` +
-      plano.perd.map(id => `<button class="chip" data-pedra="${id}"><span class="av">${P(id).ini}</span>${P(id).curto} tirou a maior</button>`).join('') + `</div>`;
+      plano.perd.map(id => {
+        const marca = !plano.escolhido ? '' : (plano.escolhido === id ? ' escolhido' : ' preterido');
+        return `<button class="chip${marca}" data-pedra="${id}"><span class="av">${P(id).ini}</span>${P(id).curto} tirou a maior</button>`;
+      }).join('') + `</div>
+      ${plano.escolhido ? '<p class="foot-note" style="margin-top:8px">Marcou errado? Toque no outro nome para trocar.</p>' : ''}`;
   }
   box.innerHTML = html;
   document.getElementById('sumBtn').disabled =
@@ -1062,7 +1080,7 @@ document.getElementById('npApelido').addEventListener('keydown', e => {
 
 /* funções chamadas pelo HTML */
 Object.assign(window, {go, toggleSom, toggleManage, toggleAdd, savePlayer, autoMesa,
-  startGame, encerrar, confirmGame});
+  startGame, encerrar, recomecar, confirmGame});
 
 /* ---------------- início ---------------- */
 /* a noite de 07/09 entrou sem PJ; quem já a tem guardada recebe a contagem da folha */
